@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Scrap Reality v.01 — AREMES Live Viewer</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0a0a;
+      color: #e0e0e0;
+      font-family: 'Courier New', monospace;
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+    }
+    #canvas-container {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+    }
+    #hud {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      padding: 20px 30px;
+      background: linear-gradient(transparent, rgba(0,0,0,0.85));
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      pointer-events: none;
+    }
+    #hud-left h1 {
+      font-size: 1.1rem;
+      font-weight: normal;
+      letter-spacing: 0.15em;
+      color: #ffffff;
+      text-transform: uppercase;
+    }
+    #hud-left p {
+      font-size: 0.7rem;
+      color: #888;
+      margin-top: 4px;
+      letter-spacing: 0.1em;
+    }
+    #hud-right { text-align: right; }
+    .stat-label {
+      font-size: 0.6rem;
+      color: #666;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+    .stat-value {
+      font-size: 1.4rem;
+      font-weight: bold;
+      letter-spacing: 0.05em;
+      transition: color 0.8s ease;
+    }
+    #eth-price { color: #00ffaa; }
+    #delta-s-value { color: #ff6b35; }
+    .stat-block { margin-top: 8px; }
+    #signal-bar-container {
+      position: absolute;
+      top: 20px; right: 20px;
+      width: 4px; height: 200px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 2px;
+    }
+    #signal-bar {
+      position: absolute;
+      bottom: 0; width: 100%;
+      background: linear-gradient(to top, #ff6b35, #ffcc00);
+      border-radius: 2px;
+      transition: height 1.5s ease;
+    }
+    #signal-label {
+      position: absolute;
+      top: -20px; right: 0;
+      font-size: 0.55rem;
+      color: #666;
+      letter-spacing: 0.1em;
+      white-space: nowrap;
+    }
+    #token-tag {
+      position: absolute;
+      top: 20px; left: 20px;
+      font-size: 0.6rem;
+      color: #444;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      line-height: 1.8;
+    }
+    #token-tag a {
+      color: #555;
+      text-decoration: none;
+      transition: color 0.3s;
+    }
+    #token-tag a:hover { color: #00ffaa; }
+    #status-dot {
+      display: inline-block;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #00ffaa;
+      margin-right: 6px;
+      animation: pulse 2s infinite;
+      vertical-align: middle;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+    #loading-screen {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: #0a0a0a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      transition: opacity 1s ease;
+    }
+    #loading-screen p {
+      font-size: 0.7rem;
+      color: #444;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      margin-top: 16px;
+      animation: pulse 1.5s infinite;
+    }
+    #loading-screen .logo {
+      font-size: 1.2rem;
+      color: #ff6b35;
+      letter-spacing: 0.3em;
+    }
+  </style>
+</head>
+<body>
+  <div id="loading-screen">
+    <div class="logo">&#9650; AREMES</div>
+    <p id="loading-text">Initializing spatial anchor...</p>
+  </div>
+  <div id="canvas-container"></div>
+  <div id="token-tag">
+    <span id="status-dot"></span>AREMES LIVE EVALUATION<br>
+    Token 55014 &mdash; SuperRare<br>
+    <a href="https://superrare.com/artwork/eth/0xb932a70A57673d89f4acfFBE830E8ed7f75Fb9e0/55014" target="_blank">View on SuperRare &#8599;</a><br>
+    &Delta;S = &alpha;(T&middot;K)&middot;e^(-&beta;&middot;t)&middot;&Psi;
+  </div>
+  <div id="signal-bar-container">
+    <div id="signal-label">&#916;S</div>
+    <div id="signal-bar" style="height: 0%"></div>
+  </div>
+  <div id="hud">
+    <div id="hud-left">
+      <h1>Scrap Reality v.01</h1>
+      <p>Ryan Seslow &mdash; Brooklyn, 2026 &mdash; First spatial anchor mint</p>
+    </div>
+    <div id="hud-right">
+      <div class="stat-block">
+        <div class="stat-label">ETH Price</div>
+        <div class="stat-value" id="eth-price">&mdash;</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-label">AREMES &Delta;S Score</div>
+        <div class="stat-value" id="delta-s-value">1.1976</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-label">Listed</div>
+        <div class="stat-value" style="color:#aaa; font-size:1rem;">0.3 ETH</div>
+      </div>
+    </div>
+  </div>
+
+  <script type="importmap">
+    {"imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/"
+    }}
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    const GLB_URL = "https://raw.githubusercontent.com/ryanseslow/scrap-reality-viewer/main/Wooden_Geometry.glb";
+
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0a0a0a);
+    scene.fog = new THREE.FogExp2(0x0a0a0a, 0.035);
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(0, 1.5, 5);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
+    container.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.minDistance = 2;
+    controls.maxDistance = 12;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.8;
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+    scene.add(ambientLight);
+    const keyLight = new THREE.DirectionalLight(0xfff5e0, 2.0);
+    keyLight.position.set(5, 8, 5);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.width = 2048;
+    keyLight.shadow.mapSize.height = 2048;
+    scene.add(keyLight);
+    const fillLight = new THREE.DirectionalLight(0x8080ff, 0.4);
+    fillLight.position.set(-5, 2, -3);
+    scene.add(fillLight);
+    const rimLight = new THREE.DirectionalLight(0xff6b35, 0.6);
+    rimLight.position.set(0, -2, -5);
+    scene.add(rimLight);
+
+    const groundGeo = new THREE.PlaneGeometry(20, 20);
+    const groundMat = new THREE.ShadowMaterial({ opacity: 0.25 });
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    let model = null;
+    let deltaS = 1.1976;
+    let targetRotationSpeed = 0.8;
+    let currentEmissiveIntensity = 0;
+    let targetEmissiveIntensity = 0;
+    let emissiveMaterials = [];
+
+    const loader = new GLTFLoader();
+    loader.load(GLB_URL, (gltf) => {
+      model = gltf.scene;
+      const box = new THREE.Box3().setFromObject(model);
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+      const scale = 3.0 / maxDim;
+      model.scale.setScalar(scale);
+      model.position.sub(center.multiplyScalar(scale));
+      model.position.y += 0.2;
+      model.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+          if (child.material) {
+            const mats = Array.isArray(child.material) ? child.material : [child.material];
+            mats.forEach(mat => {
+              if (mat.isMeshStandardMaterial || mat.isMeshPhysicalMaterial) {
+                mat.emissive = new THREE.Color(0xff6b35);
+                mat.emissiveIntensity = 0;
+                emissiveMaterials.push(mat);
+              }
+            });
+          }
+        }
+      });
+      scene.add(model);
+      const loading = document.getElementById('loading-screen');
+      loading.style.opacity = '0';
+      setTimeout(() => loading.style.display = 'none', 1000);
+    }, (xhr) => {
+      if (xhr.total) {
+        const pct = Math.round(xhr.loaded / xhr.total * 100);
+        document.getElementById('loading-text').textContent = `Loading model... ${pct}%`;
+      }
+    }, (err) => {
+      console.error('GLB load error:', err);
+      document.getElementById('loading-text').textContent = 'Error loading model.';
+    });
+
+    async function fetchEthPrice() {
+      try {
+        const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd');
+        const data = await res.json();
+        const price = data?.ethereum?.usd;
+        if (price) {
+          document.getElementById('eth-price').textContent = '$' + price.toLocaleString();
+          updateDeltaS(price);
+        }
+      } catch(e) {
+        document.getElementById('eth-price').textContent = 'Live';
+      }
+    }
+
+    function updateDeltaS(price) {
+      const normalized = Math.min(price / 5000, 2.0);
+      const modulated = parseFloat((deltaS * (0.85 + normalized * 0.15)).toFixed(4));
+      document.getElementById('delta-s-value').textContent = modulated.toFixed(4);
+      document.getElementById('signal-bar').style.height = Math.min((modulated / 2.0) * 100, 100) + '%';
+      targetRotationSpeed = 0.4 + normalized * 1.6;
+      targetEmissiveIntensity = normalized * 0.3;
+    }
+
+    fetchEthPrice();
+    setInterval(fetchEthPrice, 60000);
+
+    const clock = new THREE.Clock();
+    function animate() {
+      requestAnimationFrame(animate);
+      const elapsed = clock.getElapsedTime();
+      clock.getDelta();
+      controls.autoRotateSpeed += (targetRotationSpeed - controls.autoRotateSpeed) * 0.02;
+      currentEmissiveIntensity += (targetEmissiveIntensity - currentEmissiveIntensity) * 0.02;
+      emissiveMaterials.forEach(mat => { mat.emissiveIntensity = currentEmissiveIntensity; });
+      if (model) model.position.y = 0.2 + Math.sin(elapsed * 0.4) * 0.06;
+      rimLight.intensity = 0.4 + Math.sin(elapsed * 0.8) * 0.2;
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
